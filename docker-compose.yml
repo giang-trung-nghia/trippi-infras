@@ -1,1 +1,39 @@
 version: "3.9"
+
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: trippi-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "nghiA2905@@"
+      POSTGRES_DB: trippi
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  backend:
+    build: ../trippi-be
+    container_name: trippi-be
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../trippi-be/.env
+    depends_on:
+      - postgres
+
+  frontend:
+    build: ../trippi-fe
+    container_name: trippi-fe
+    ports:
+      - "3000:3000"
+    env_file:
+      - ../trippi-fe/.env
+    depends_on:
+      - backend
+
+volumes:
+  postgres-data:
