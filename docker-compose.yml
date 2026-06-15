@@ -38,7 +38,8 @@ services:
     env_file:
       - ../trippi-be/.env
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
   backend:
     build: ../trippi-be
