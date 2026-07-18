@@ -31,6 +31,18 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7
+    container_name: trippi-redis
+    restart: always
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   migration:
     build: ../trippi-be
     container_name: trippi-migration
@@ -53,6 +65,8 @@ services:
         condition: service_healthy
       migration:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
 
   frontend:
     build: ../trippi-fe
@@ -63,6 +77,40 @@ services:
       - ../trippi-fe/.env
     depends_on:
       - backend
+
+  # ── AI service (internal only — not exposed via nginx) ──────────────────────
+  # trippi-be calls http://ai:8001 directly on the Docker internal network.
+  # No public port is mapped intentionally.
+
+  ai:
+    build: ../trippi-ai
+    container_name: trippi-ai
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001
+    expose:
+      - "8001"
+    env_file:
+      - ../trippi-ai/.env
+    environment:
+      REDIS_HOST: redis
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+
+  ai-worker:
+    build: ../trippi-ai
+    container_name: trippi-ai-worker
+    command: arq app.worker.worker.WorkerSettings
+    env_file:
+      - ../trippi-ai/.env
+    environment:
+      REDIS_HOST: redis
+    depends_on:
+      redis:
+        condition: service_healthy
+      ai:
+        condition: service_started
 
 volumes:
   postgres-data:
